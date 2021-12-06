@@ -1,0 +1,51 @@
+name: 만들어진 프로젝트 보드 발견
+on:
+  workflow_dispatch:
+    inputs:
+      ownerProject:
+        description: "현재 만들어진 프로젝트들을 찾아볼까요?"
+        default: "네"
+        required: true
+
+        
+permissions:
+  actions: none
+  checks: none
+  contents: none
+  deployments: none
+  issues: none
+  packages: none
+  pull-requests: none
+  repository-projects: read
+  security-events: none
+  statuses: none
+        
+jobs:
+  discover-different-projects:
+    name: 프로젝트 보드 찾기
+    runs-on: ubuntu-latest
+    steps:
+      - name: 프로젝트 보드 찾기
+        uses: actions/github-script@v4.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          previews: 'inertia' # 깃허브 프로젝트 API 를 위해선 필수
+          script: |       
+            try {
+              listProjects = await github.projects.listForRepo({
+                owner: context.payload.organization.login ,
+                repo: context.payload.repository.name ,
+                per_page: 100
+              })
+             
+            } catch(err) {
+                throw err 
+            }
+            
+            var count = 0
+            console.log("| 프로젝트 개수 | 프로젝트 이름 | 고유 프로젝트 아이디 | 만든이 |")
+            listProjects.data.forEach(function(project) {
+              console.log("| 프로젝트 " + count + " | " + project.name + " | " + project.id + " | " + project.creator.login + " |")
+              ++ count
+            })
+            
