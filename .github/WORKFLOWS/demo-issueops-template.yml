@@ -1,0 +1,73 @@
+name: 이슈옵스를 통한 레포 만들기
+description: 이슈옵스는 사용자로 부터 입력 값을 받은 후 레포를 샘플 템플릿 레포를 통해 만들고 다양한 세팅을 설정 합니다
+title: "[이슈옵스]: "
+labels: ["issueops", "triage"]
+assignees:
+  - bryantson
+body:
+  - type: markdown
+    attributes:
+      value: |
+        이 레포트를 완성해주시면 감사하겠습니다
+  - type: input
+    id: new-repository
+    attributes:
+      label: 새로운 레포 이름
+      description: 새로운 레포의 영문 이름으로 적어 주세요
+      placeholder: 예. new-repository
+    validations:
+      required: true
+  - type: dropdown
+    id: template-repository
+    attributes:
+      label: 템플릿 레포
+      description: 사용하고 싶은 템플릿 레포를 골라주세요
+      options:
+        - sample-template-repository-universe
+    validations:
+      required: true
+  - type: input
+    id: team
+    attributes:
+      label: 팀 권한
+      description: 관리자 권한을 적용한 팀 이름을 적어주세요
+      placeholder: 예. Avengers
+    validations:
+      required: false
+      
+  - type: checkboxes
+    id: enable-issues
+    attributes:
+      label: Issue 사용하기
+      description: Issue 를 사용 가능하게 만들까요?
+      options:
+        - label: 네, issue 를 사용 가능하길 원합니다
+          required: false
+          
+  - type: checkboxes
+    id: enable-project
+    attributes:
+      label: Project 보드 사용하기
+      description: Project 보드를 사용 가능하게 만들까요?
+      options:
+        - label: 네, project Board 를 사용 가능하길 원합니다
+          required: false
+          
+  - type: checkboxes
+    id: enable-squash-merge
+    attributes:
+      label: Squash Merge 를 사용하기
+      description: squash merge 를 사용 가능하게 만들까요?
+      options:
+        - label: 네, squash merge 를 사용 가능하길 원합니다
+          required: false
+     
+  - type: checkboxes
+    id: enable-forking
+    attributes:
+      label: Fork 를 사용하기
+      description: Fork 를 사용 가능하게 만들까요?
+      options:
+        - label: 네, Fork 를 사용 가능하길 원합니다
+          required: false
+          
