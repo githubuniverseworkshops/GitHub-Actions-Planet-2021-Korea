@@ -1,0 +1,26 @@
+name: 마소 팀즈 메시지 보내기
+
+on:
+  workflow_dispatch:
+    inputs:
+      messageTeam:
+        description: "깃허브 액션 행성에서 전송할 메시지를 적어주세요!"
+        required: true
+        default: ''
+jobs:
+
+  Send-Message:
+    runs-on: ubuntu-latest
+    name: 팀스 메시지 전공
+    
+    steps:
+      - name: 마이크로소프트 팀스로 메시지 보내기
+        uses: aliencube/microsoft-teams-actions@v0.8.0
+        with:
+          webhook_uri: ${{ secrets.MICROSOFT_TEAM_URL }}
+          title: Hello, GitHub Actions planet
+          summary: 팀스 메시지 전송 데모 입니다
+          text: 깃허브 액션 행성으로 오신걸 환영합니다. 불가능이란 없고 다양한 배움과 네트워크를 통해 성장 할수 있는 곳. 그리고 졸귀 문어 고양이도 찾을 수 있습니다.
+          theme_color: red
+          sections: '[{ "activityTitle": "${{ github.event.inputs.messageTeam }}" }]'
+          actions: '[{ "@type": "OpenUri", "name": "깃허브 유니버스", "targets": [{ "os": "default", "uri": "https://githubuniverse.com" }] }]'
