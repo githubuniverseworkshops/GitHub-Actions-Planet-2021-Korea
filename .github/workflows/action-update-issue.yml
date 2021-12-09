@@ -1,0 +1,53 @@
+name: 이슈 업데이트
+
+on:
+  issues:
+    types: closed
+    
+jobs:
+  Manage-Issues:
+    runs-on: ubuntu-latest
+    name: 이슈 메니지먼트
+    
+    steps:
+      - name: 클로즈 이슈
+        uses: actions/github-script@v5
+        with:
+          script: |
+            // 이슈 닫기
+            github.rest.issues.update({
+              owner: context.payload.organization.login,
+              repo: context.payload.repository.name,
+              issue_number: context.issue.number,
+              state: "closed"
+            })
+            
+            
+      - name: 오픈 이슈
+        uses: actions/github-script@v5
+        with:
+          script: |
+            // 다음 이슈 오픈
+            github.rest.issues.update({
+              owner: context.payload.organization.login,
+              repo: context.payload.repository.name,
+              issue_number: context.issue.number + 1,
+              state: "open"
+            })
+            
+      - name: 이슈 커멘트
+        uses: actions/github-script@v5
+        with:
+          script: |
+            // 이슈 커멘트
+            github.rest.issues.createComment({
+              owner: context.payload.organization.login,
+              repo: context.payload.repository.name,
+              issue_number: context.issue.number,
+              body: "# 축하합니다. " +  context.payload.issue.title + " 에서의 미션을 완성하셨습니다\n ![image](https://user-images.githubusercontent.com/5396174/137656679-43d43513-beef-4e4a-bcd9-fec7941d07a5.png)" + "\n ## [다음 대륙으로 이동할까요?](https://github.com/" + context.payload.organization.login + "/" + context.payload.repository.name + "/issues/" + (context.payload.issue.number + 1) + ")" 
+            })
+            
+            
+
+            
+            
