@@ -1,0 +1,24 @@
+name: 슬랙 메시지 보내기
+
+on:
+  workflow_dispatch:
+      inputs:
+         greeting:
+            description: "깃허브 액션에서 전송할 인사말을 적어 주세요!"
+            required: true
+            default: ''
+
+jobs:
+   Hello-GitHub-Actions:
+      runs-on: ubuntu-latest
+      name: 슬랙 채널에 전송
+
+      steps:
+        - name: 깃허브 액션 - 안녕 인사
+          id: slack
+          uses: slackapi/slack-github-action@v1.14.0
+          with:
+            channel-id: 'github-universe'
+            slack-message: '깃허브 액션 행성에서 인사합니다! 반가워요. ${{ github.event.inputs.greeting }}'
+          env:
+            SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
