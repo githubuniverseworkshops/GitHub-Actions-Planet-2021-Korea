@@ -1,0 +1,56 @@
+name: Azure 웹앱 배포
+
+on:
+  workflow_dispatch:
+    inputs:
+      provision_azure:
+        description: "Azure 웹앱을 배포 할까요? (네/아니요)"
+        required: true
+        default: '네'
+
+env:
+  AZURE_RESOURCE_GROUP: GitHubUniverse2021-AppDevDemo-group
+  AZURE_APP_PLAN: actions-bryant-deployment
+  AZURE_LOCATION: '"Central US"'
+  #################################################
+  ### 사용자 설정 값들은 아래에서 찾을수 있습니다       ###
+  #################################################
+  #################################################
+  AZURE_WEBAPP_NAME: sample-nodejs-app-bryant
+  #################################################
+
+jobs:
+  setup-up-azure-resources:
+    name: Azure 웹앱 배포하기
+    runs-on: ubuntu-latest
+
+    if: ${{ github.event.inputs.provision_azure == '네' }}
+
+    steps:
+      - name: 레포 체크아웃
+        uses: actions/checkout@v2
+
+      - name: Azure 로그인
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Azure 리소스 그룹 만들기
+        if: success()
+        run: |
+          az group create --location ${{env.AZURE_LOCATION}} --name ${{env.AZURE_RESOURCE_GROUP}} --subscription ${{secrets.ARM_SUBSCRIPTION_ID}}
+
+      - name: Azure 앱 서비스 플랜 만들기
+        if: success()
+        run: |
+          az appservice plan create --resource-group ${{env.AZURE_RESOURCE_GROUP}} --name ${{env.AZURE_APP_PLAN}} --is-linux --sku F1 --subscription ${{secrets.ARM_SUBSCRIPTION_ID }}
+
+      - name: Azure 웹앱 만들기
+        if: success()
+        run: |
+          az webapp create --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --plan ${{ env.AZURE_APP_PLAN }} --name ${{ env.AZURE_WEBAPP_NAME }}  --deployment-container-image-name nginx --subscription ${{secrets.ARM_SUBSCRIPTION_ID}}
+
+      - name: 깃허브 페키지를 위한 웹앱 설정
+        if: success()
+        run: |
+          az webapp config container set --docker-custom-image-name nginx --docker-registry-server-password ${{secrets.GITHUB_TOKEN}} --docker-registry-server-url https://ghcr.io --docker-registry-server-user ${{github.actor}} --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --subscription ${{secrets.ARM_SUBSCRIPTION_ID}}
