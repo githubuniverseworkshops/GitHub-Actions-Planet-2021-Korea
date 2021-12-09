@@ -1,0 +1,157 @@
+name: 프로젝트 보드 카피
+on:
+  workflow_dispatch:
+    inputs:
+      projectID:
+        description: "카피하실 프로젝트 보드 아이디를 적어 주세요"
+        default: "13877300"
+        required: true
+      descNewProject:
+        description: "깃허브 아이드를 적어 주세요"
+        default: "@깃허브아이디"
+        required: true
+
+permissions:
+  actions: none
+  checks: none
+  contents: none
+  deployments: none
+  issues: none
+  packages: none
+  pull-requests: none
+  repository-projects: write
+  security-events: none
+  statuses: none
+        
+env:
+  PROJECT_ID: ${{ github.event.inputs.projectID }}
+        
+jobs:
+  newProject:
+    name: 깃허브 프로젝트 카피
+    runs-on: ubuntu-latest
+    steps:
+      - name: 깃허브 프로젝트 카피
+        uses: actions/github-script@v4.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          previews: 'inertia' # 깃허브 프로젝트 API 를 위해 필수
+          script: |
+            console.log("======= 고유 프로젝트 아이디 " + ${{ env.PROJECT_ID }} + " 에서 데이터를 추출 합니다 ==============")
+            
+            // 기존 프로젝트 보드 column 읽기:
+            try {
+              listColumns = await github.projects.listColumns({
+                project_id: ${{ env.PROJECT_ID }}
+              })
+            } catch(err) {
+                throw err 
+            }
+            
+            console.log("총 " + listColumns.length + " column 을 다음 고유 프로젝트 아이디 에서 찾았습: " + ${{ env.PROJECT_ID }})
+            
+            // column 아이디를 저장하는 리스트:
+            listColumnIDs = []
+            // column 이름을 저장하는 리스트:
+            listColumnNames = []
+            
+            // column 을 룹하면서 데이터 추출:
+            listColumns.data.forEach(function(column) {
+              listColumnIDs.push(column.id)
+              listColumnNames.push(column.name)
+            })
+            
+            // 포맷 안된 카드를 저장하는 리스트:
+            listAllCardsUnformatted = []
+            
+            // 카드 데이터:
+            try {
+              for(var i=0; i < listColumnIDs.length; ++ i) {
+                listCards4Column = await github.projects.listCards({
+                  column_id: listColumnIDs[i]
+                })
+                listAllCardsUnformatted.push(listCards4Column.data)
+              }
+              
+            } catch(err) {
+                throw err 
+            }
+            
+            // 카드를 저장하는 리스트:
+            listAllCards = []
+            
+            // 새로운 리스트 :
+            listAllCardsUnformatted.forEach(function(cardsPerColumn) {
+              listCardsPerColumn = []
+              
+              // ITERATING through all cards in this column:
+              cardsPerColumn.forEach(function(card) {
+                listCardsPerColumn.push(card.note ? card.note : card.content_id)
+              })
+              
+              // STORING the reversed card orders since it is ordered in an opposite way:
+              listAllCards.push(listCardsPerColumn.reverse())
+            })
+           
+            console.log("프로젝트 보드 안에 있는 카드들 => " + JSON.stringify(listAllCards))
+            
+            // column 개수를 나타냅니다:
+            nListColumns = listAllCards.length;
+            
+            console.log("\n========= 프로젝트 만들기 ==================\n")
+
+            // 새로운 프로젝트 보드를 나타냅니다:
+            var projectObj="";
+            
+            // 인풋 값으로 새로운 프로젝트 보드를 만듭니다:
+            try {
+              projectObj = await github.projects.createForRepo({
+                owner: context.payload.organization.login,
+                repo: context.payload.repository.name,
+                name: "${{ github.event.inputs.descNewProject }} 깃허브 액션 행성 생존계획"
+              })
+            } catch(err) {
+                throw err 
+            }
+
+            console.log("다음 Project ID 를 가진 새로운 프로젝트 보드가 만들어졌습니다: " + projectObj.data.id)
+            console.log("다음, column 하고 카드를 만듭니다")
+            
+            // 새로운 프로젝트 보드의 카드를 만듭니다:
+            for(var iColumn=0; iColumn < nListColumns; ++ iColumn) {
+              try {
+                  // CREATE a new column attached to our new project ID:
+                  var columnObj = await github.projects.createColumn({
+                    name: listColumnNames[iColumn],
+                    project_id: projectObj.data.id
+                  })
+
+                  // 총 카드 수를 계산 합니다:
+                  nCardsPerColumn = listAllCards[iColumn].length
+                  
+                  //  한 column 안에 있는 카드들을 저장합니다:
+                  listOrderedCardsPerColumn = listAllCards[iColumn]
+                                    
+                  console.log("이 column 의 : " + JSON.stringify(listOrderedCardsPerColumn))
+                  
+                  // 카드를 만듭니다:
+                  for(var iCard = 0; iCard < nCardsPerColumn; ++ iCard) {
+                    try {
+                      var cardObj = await github.projects.createCard({
+                        column_id: columnObj.data.id,
+                        note: listOrderedCardsPerColumn[iCard]
+                      })
+                      
+                    } catch(err) {
+                        console.log("카드 만드는 중 에러: " + err);
+                        throw err;
+                    }
+                  }
+              } catch(err) {
+                  console.log("일반 에러: " + err);
+                  throw err 
+               }
+            }
+            
+            console.log("끝!")
+        
