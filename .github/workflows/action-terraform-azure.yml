@@ -1,0 +1,49 @@
+name: Azure 테라폼으로 배포
+
+on:
+  workflow_dispatch:
+    inputs:
+      provision_azure:
+        description: "Azure 인프라 리소스를 만드시겠습니까? (네/아니요)"
+        required: true
+        default: '네'
+        
+defaults:
+  run:
+    working-directory: devops/infra/azure
+    
+env:
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+
+jobs:
+  Terraform-Script:
+    runs-on: ubuntu-latest
+    name: 테라폼 실행
+    if: ${{ github.event.inputs.provision_azure == '네' }}
+
+    steps:
+      - name: 파일 체크아웃
+        uses: actions/checkout@v2
+
+      - name: 테라폼 셋업
+        uses: hashicorp/setup-terraform@v1
+
+      - name: 테라폼 설정
+        id: init
+        run: terraform init
+
+      - name: 테라폼 확인
+        id: validate
+        run: terraform validate -no-color
+
+      - name: 테라폼 계획
+        id: plan
+        run: terraform plan -no-color
+        continue-on-error: false
+ 
+      - name: 테라폼 적용
+        id: apply
+        run: terraform apply -auto-approve
