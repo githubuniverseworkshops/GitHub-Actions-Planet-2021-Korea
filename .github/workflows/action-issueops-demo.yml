@@ -1,0 +1,99 @@
+name: 이슈옵스를 통해서 레포 만들기
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  Create-Repo:
+    name: 레포 만들기
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'issueops')
+    steps:
+            
+      - name: 깃허브 레포를 만듭니다
+        uses: actions/github-script@v5
+        with:
+          github-token: ${{ secrets.CUSTOM_TOKEN }}
+          script: |
+            
+            bodySplit = context.payload.issue.body.split("\n")
+
+            let newRepo = bodySplit[2]
+            let templateRepo = bodySplit[6]
+            let teams = bodySplit[10].split(",")
+            let enableIssue = bodySplit[14].includes("X")
+            let enableProject = bodySplit[18].includes("X")
+            let enableSquashMerge = bodySplit[22].includes("X")
+            let enableForking = bodySplit[26].includes("X")
+                        
+            try {
+              await github.rest.repos.createUsingTemplate({
+                template_owner: context.payload.organization.login,
+                template_repo: templateRepo,
+                name: newRepo,
+                owner: context.payload.organization.login,
+                description: "깃허브 액션을 통해 만든 새로운 레포 ",
+                include_all_branches: true,
+                private: false
+              })
+            } catch(err) {
+                throw err 
+            }
+            
+            try {
+              await github.rest.repos.update({
+                owner: context.payload.organization.login,
+                private: true,
+                repo: newRepo,
+                has_issues: enableIssue,
+                has_projects: enableProject,
+                allow_squash_merge: enableSquashMerge
+              })
+            } catch(err) {
+                throw err 
+            }
+            
+            try {
+              await github.rest.repos.updateBranchProtection({
+                "owner": context.payload.organization.login,
+                "repo": newRepo,
+                "branch": 'main',
+                "required_status_checks": { "strict": true, "contexts": [] },
+                "enforce_admins": true,
+                "required_pull_request_reviews": {"dismissal_restrictions": {"users":[], "teams":[]}, "dismiss_stale_reviews": false, "require_code_owner_reviews": true, "required_approving_review_count": 1},
+                "restrictions" : { "users": [], "teams": [], "apps": [] }
+              })
+            } catch(err) {
+                throw err 
+            }
+            
+            try {
+              await github.rest.teams.addOrUpdateRepoPermissionsInOrg({
+                org: context.payload.organization.login,
+                owner: context.payload.organization.login,
+                repo: newRepo,
+                team_slug: teams,
+                permission: 'admin'
+              })
+            } catch(err) {
+                throw err 
+            }
+            
+            try { 
+              await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '새로운 레포는 다음 주소에서 : https://github.com/' + context.payload.organization.login + "/" + newRepo
+             }) 
+            } catch(err) {
+                throw err
+            }
+            
+            
+            
+
+          
+      
+         
+
