@@ -1,0 +1,124 @@
+name: NodeJS CI/CD 프로세스
+
+on:
+  workflow_dispatch:
+    inputs:
+      test-nodejs:
+        description: "NodeJS CI/CD 프로세스를 실행할까요? (네/아니요)"
+        required: true
+        default: '네'
+env:
+  DOCKER_IMAGE_NAME: my-custom-nodeapp
+  DOCKER_IMAGE_VERSION: ${{ github.sha }}
+  AZURE_WEBAPP_NAME: sample-nodejs-app-bryant
+  IMAGE_REGISTRY_URL: ghcr.io
+  AZURE_RESOURCE_GROUP: GitHubUniverse2021-AppDevDemo-group
+  
+defaults:
+  run:
+    working-directory: devops/appdev/nodejs
+
+jobs:
+  NodeJS-Test:
+    runs-on: ubuntu-latest
+    name: NodeJS 빌드
+    if: ${{ github.event.inputs.test-nodejs == '네' }}
+
+    steps:
+      - name: 파일 체크아웃
+        uses: actions/checkout@v2
+
+      - name: NodeJS 셋업
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: NPM 모듈 설치
+        run: npm install
+
+      - name: NPM 테스트 돌리기
+        run: npm test
+         
+      - name: 테스트 결과를 깃허브 아티팩트로 올리기
+        uses: actions/upload-artifact@main
+        with:
+          name: 테스트 결과
+          path: ${{ github.workspace }}/devops/appdev/nodejs/output.txt
+          
+      - name: 깃허브 아티팩트에 테스트 카버리지 올리기
+        uses: actions/upload-artifact@main
+        with:
+          name: 테스트 카버리지 결과
+          path: ${{ github.workspace }}/devops/appdev/nodejs/coverage
+          
+  Build-Image:
+    needs: NodeJS-Test
+    runs-on: ubuntu-latest
+    name: 컨테이너 이미지 빌드
+ 
+    steps:
+      - name: 파일 체크 아웃
+        uses: actions/checkout@v2
+        
+      - name: 깃허브 컨테이너 리지스트리 로그인
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.TOKEN_PACKAGE }}
+          
+      - name: 빌드 그리고 푸쉬
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          context: devops/appdev/nodejs
+          push: true
+          tags: ghcr.io/githubuniverseworkshops/nodejs/${{ env.DOCKER_IMAGE_NAME }}:${{ env.DOCKER_IMAGE_VERSION }}
+          
+  Deploy-Azure:
+    runs-on: ubuntu-latest
+    needs: Build-Image
+    name: 컨테이너를 Azure 웹앱에 배포
+    steps:
+      - name: Azure CLI 로 로그인
+        uses: azure/login@v1
+        with: 
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: GHCR 리지스트리 로그인
+        uses: azure/docker-login@v1
+        with: 
+          login-server: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.TOKEN_PACKAGE }}
+          
+      - name: 웹앱 ACR 인증
+        uses: Azure/appservice-settings@v1
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          app-settings-json: |
+           [
+             {
+                 "name": "DOCKER_REGISTRY_SERVER_PASSWORD",
+                 "value": "${{ secrets.TOKEN_PACKAGE }}",
+                 "slotSetting": false
+             },
+             {
+                 "name": "DOCKER_REGISTRY_SERVER_URL",
+                 "value": "https://ghcr.io",
+                 "slotSetting": false
+             },
+             {
+                 "name": "DOCKER_REGISTRY_SERVER_USERNAME",
+                 "value": "${{ github.actor }}",
+                 "slotSetting": false
+             }
+           ]
+          
+      - name: Azure 웹앱 컨테이너로 배포
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          images: ${{ env.IMAGE_REGISTRY_URL }}/githubuniverseworkshops/nodejs/${{ env.DOCKER_IMAGE_NAME }}:${{ env.DOCKER_IMAGE_VERSION }}
+          
+ 
